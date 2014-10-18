@@ -15,18 +15,22 @@
         This function is dependent on jquery, the bootstrap framework and the jasny bootstrap add-on.
 
         Author: Øyvind Kallstad @okallstad
-        Version: 1.0
+        Version: 1.1
     #>
     [CmdletBinding()]
     param(
         # Name of module. Note! The module must be imported before running this function.
         [Parameter(Mandatory = $true)]
         [ValidateNotNullOrEmpty()]
-        [string]$ModuleName,
+        [string] $ModuleName,
 
         # Full path and filename to the generated html helpfile.
         [Parameter(Mandatory = $true)]
-        [string]$Path
+        [string] $Path,
+
+        # Skip dependency check.
+        [Parameter()]
+        [switch] $SkipDependencyCheck = $false
     )
 
     # jquery filename - remember to update if you update jquery to a newer version
@@ -37,15 +41,17 @@
 
     try {
         # check dependencies
-        $missingDependency = $false
-        foreach($dependency in $dependencies) {
-            if(-not(Test-Path -Path ".\$($dependency)")) {
-                Write-Warning "Missing: $($dependency)"
-                $missingDependency = $true
+        if (-not($SkipDependencyCheck)) {
+            $missingDependency = $false
+            foreach($dependency in $dependencies) {
+                if(-not(Test-Path -Path ".\$($dependency)")) {
+                    Write-Warning "Missing: $($dependency)"
+                    $missingDependency = $true
+                }
             }
+            if($missingDependency) { break }
+            Write-Verbose 'Dependency check OK'
         }
-        if($missingDependency) { break }
-        Write-Verbose 'Dependency check OK'
 
         # add System.Web - used for html encoding
         Add-Type -AssemblyName System.Web
@@ -98,7 +104,10 @@
 "@
 
         # loop through the commands to build the menu structure
+        $count = 0
         foreach($command in $moduleCommands) {
+            $count++
+            Write-Progress -Activity "Creating HTML for $($command)" -PercentComplete ($count/$moduleCommands.count*100)
             $html += @"
           <!-- $($command) Menu -->
           <li class="dropdown">
